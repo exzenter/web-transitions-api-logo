@@ -27,7 +27,7 @@ class LogoTransition {
 
         // Default transition settings (can be overridden per-logo)
         this.defaults = {
-            scale: 15,      // 1500% scale
+            scale: 10,      // Multiplier of viewport (10 = 10x viewport size)
             offsetX: 0,     // % offset from center
             offsetY: 0,     // % offset from center
         };
@@ -92,10 +92,6 @@ class LogoTransition {
         this.isTransitioning = true;
         document.body.classList.add('transitioning');
 
-        // Set background color to logo color to hide any flash during navigation
-        document.documentElement.style.setProperty('--transition-color', serviceData.fillColor);
-        document.body.style.backgroundColor = serviceData.fillColor;
-
         // Store transition data for the next page (including custom settings)
         sessionStorage.setItem('transitionData', JSON.stringify({
             fillColor: serviceData.fillColor,
@@ -109,6 +105,10 @@ class LogoTransition {
 
         this.createTransitionLogo(serviceData);
         await this.expandLogo(serviceData);
+
+        // Set background color JUST before navigation (when logo covers screen)
+        document.body.style.backgroundColor = serviceData.fillColor;
+
         window.location.href = targetUrl;
     }
 
@@ -133,12 +133,10 @@ class LogoTransition {
         const vh = window.innerHeight;
         const rect = serviceData.rect;
 
-        const logoSize = Math.max(rect.width, rect.height);
         const maxDimension = Math.max(vw, vh);
 
-        // Use custom scale from data attribute
-        const targetScale = serviceData.scale;
-        const finalSize = logoSize * targetScale;
+        // Scale is multiplier of viewport size (scale=10 means 10x viewport)
+        const finalSize = maxDimension * serviceData.scale;
 
         // Calculate center position with offset
         const offsetPixelsX = (serviceData.offsetX / 100) * vw;
@@ -148,7 +146,7 @@ class LogoTransition {
         const centerY = vh / 2 - finalSize / 2 + offsetPixelsY;
 
         return new Promise(resolve => {
-            // Animate using width/height for sharp vector scaling (not transform)
+            // Animate using width/height for sharp vector scaling
             const animation = this.transitionLogo.animate([
                 {
                     left: `${rect.left}px`,
@@ -200,7 +198,7 @@ class LogoTransition {
     async completeTransition(data, heroLogo, servicePage) {
         document.body.classList.add('transitioning');
 
-        // Set background to logo color to prevent any flash
+        // Set background to logo color (matches the expanded logo)
         document.body.style.backgroundColor = data.fillColor;
         heroLogo.style.opacity = '0';
 
@@ -214,9 +212,6 @@ class LogoTransition {
         heroLogo.style.opacity = '';
         servicePage.classList.add('visible');
 
-        // Restore background color
-        document.body.style.backgroundColor = '';
-
         this.cleanup();
         document.body.classList.remove('transitioning');
     }
@@ -229,9 +224,10 @@ class LogoTransition {
         this.transitionLogo.className = 'transition-logo';
         this.transitionLogo.innerHTML = data.svgContent;
 
-        const logoSize = 64;
+        const maxDimension = Math.max(vw, vh);
         const scale = data.scale || this.defaults.scale;
-        const expandedSize = logoSize * scale;
+        // Scale as multiplier of viewport
+        const expandedSize = maxDimension * scale;
 
         // Apply the same offset used during expansion
         const offsetPixelsX = ((data.offsetX || 0) / 100) * vw;
@@ -241,6 +237,7 @@ class LogoTransition {
         const centerY = vh / 2 - expandedSize / 2 + offsetPixelsY;
 
         this.transitionLogo.style.cssText = `
+            position: absolute;
             left: ${centerX}px;
             top: ${centerY}px;
             width: ${expandedSize}px;
@@ -253,22 +250,26 @@ class LogoTransition {
     async shrinkLogo(targetRect, data) {
         const vw = window.innerWidth;
         const vh = window.innerHeight;
-        const logoSize = 64;
+        const maxDimension = Math.max(vw, vh);
         const scale = data.scale || this.defaults.scale;
-        const expandedSize = logoSize * scale;
+        const expandedSize = maxDimension * scale;
 
         const offsetPixelsX = ((data.offsetX || 0) / 100) * vw;
         const offsetPixelsY = ((data.offsetY || 0) / 100) * vh;
 
-        const centerX = vw / 2 - expandedSize / 2 + offsetPixelsX;
-        const centerY = vh / 2 - expandedSize / 2 + offsetPixelsY;
+        const startX = vw / 2 - expandedSize / 2 + offsetPixelsX;
+        const startY = vh / 2 - expandedSize / 2 + offsetPixelsY;
+
+        // First, quickly shrink the background
+        await this.delay(100);
+        document.body.style.backgroundColor = '';
 
         return new Promise(resolve => {
-            // Animate using width/height for sharp vector scaling
+            // Animate to hero position
             const animation = this.transitionLogo.animate([
                 {
-                    left: `${centerX}px`,
-                    top: `${centerY}px`,
+                    left: `${startX}px`,
+                    top: `${startY}px`,
                     width: `${expandedSize}px`,
                     height: `${expandedSize}px`,
                     opacity: 1
@@ -529,14 +530,13 @@ class LogoTransition {
 
         this.createTransitionLogo(serviceData);
         document.body.classList.add('transitioning');
-        document.body.style.backgroundColor = serviceData.fillColor;
 
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         const rect = serviceData.rect;
-        const logoSize = Math.max(rect.width, rect.height);
-        const targetScale = serviceData.scale;
-        const finalSize = logoSize * targetScale;
+        const maxDimension = Math.max(vw, vh);
+        // Scale as multiplier of viewport
+        const finalSize = maxDimension * serviceData.scale;
 
         const offsetPixelsX = (serviceData.offsetX / 100) * vw;
         const offsetPixelsY = (serviceData.offsetY / 100) * vh;
@@ -552,8 +552,11 @@ class LogoTransition {
             ], { duration: 600, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }).onfinish = resolve;
         });
 
+        // Set background color when logo covers screen
+        document.body.style.backgroundColor = serviceData.fillColor;
+
         // Hold for a moment
-        await this.delay(500);
+        await this.delay(300);
 
         // Shrink back
         await new Promise(resolve => {
