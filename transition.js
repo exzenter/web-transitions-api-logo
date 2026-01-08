@@ -92,6 +92,10 @@ class LogoTransition {
         this.isTransitioning = true;
         document.body.classList.add('transitioning');
 
+        // Set background color to logo color to hide any flash during navigation
+        document.documentElement.style.setProperty('--transition-color', serviceData.fillColor);
+        document.body.style.backgroundColor = serviceData.fillColor;
+
         // Store transition data for the next page (including custom settings)
         sessionStorage.setItem('transitionData', JSON.stringify({
             fillColor: serviceData.fillColor,
@@ -133,28 +137,31 @@ class LogoTransition {
         const maxDimension = Math.max(vw, vh);
 
         // Use custom scale from data attribute
-        const targetScale = (maxDimension * serviceData.scale) / logoSize;
+        const targetScale = serviceData.scale;
+        const finalSize = logoSize * targetScale;
 
         // Calculate center position with offset
-        // Offset is percentage of viewport, negative = move logo left/up (content moves right/down)
         const offsetPixelsX = (serviceData.offsetX / 100) * vw;
         const offsetPixelsY = (serviceData.offsetY / 100) * vh;
 
-        const centerX = vw / 2 - rect.width / 2 + offsetPixelsX;
-        const centerY = vh / 2 - rect.height / 2 + offsetPixelsY;
+        const centerX = vw / 2 - finalSize / 2 + offsetPixelsX;
+        const centerY = vh / 2 - finalSize / 2 + offsetPixelsY;
 
         return new Promise(resolve => {
+            // Animate using width/height for sharp vector scaling (not transform)
             const animation = this.transitionLogo.animate([
                 {
-                    transform: 'scale(1)',
                     left: `${rect.left}px`,
                     top: `${rect.top}px`,
+                    width: `${rect.width}px`,
+                    height: `${rect.height}px`,
                     opacity: 1
                 },
                 {
-                    transform: `scale(${targetScale})`,
                     left: `${centerX}px`,
                     top: `${centerY}px`,
+                    width: `${finalSize}px`,
+                    height: `${finalSize}px`,
                     opacity: 1
                 }
             ], {
@@ -192,6 +199,9 @@ class LogoTransition {
 
     async completeTransition(data, heroLogo, servicePage) {
         document.body.classList.add('transitioning');
+
+        // Set background to logo color to prevent any flash
+        document.body.style.backgroundColor = data.fillColor;
         heroLogo.style.opacity = '0';
 
         this.createExpandedOverlay(data);
@@ -203,6 +213,9 @@ class LogoTransition {
         heroLogo.classList.add('visible');
         heroLogo.style.opacity = '';
         servicePage.classList.add('visible');
+
+        // Restore background color
+        document.body.style.backgroundColor = '';
 
         this.cleanup();
         document.body.classList.remove('transitioning');
@@ -217,22 +230,21 @@ class LogoTransition {
         this.transitionLogo.innerHTML = data.svgContent;
 
         const logoSize = 64;
-        const maxDimension = Math.max(vw, vh);
-        const scale = (maxDimension * (data.scale || this.defaults.scale)) / logoSize;
+        const scale = data.scale || this.defaults.scale;
+        const expandedSize = logoSize * scale;
 
         // Apply the same offset used during expansion
         const offsetPixelsX = ((data.offsetX || 0) / 100) * vw;
         const offsetPixelsY = ((data.offsetY || 0) / 100) * vh;
 
-        const centerX = vw / 2 - logoSize / 2 + offsetPixelsX;
-        const centerY = vh / 2 - logoSize / 2 + offsetPixelsY;
+        const centerX = vw / 2 - expandedSize / 2 + offsetPixelsX;
+        const centerY = vh / 2 - expandedSize / 2 + offsetPixelsY;
 
         this.transitionLogo.style.cssText = `
             left: ${centerX}px;
             top: ${centerY}px;
-            width: ${logoSize}px;
-            height: ${logoSize}px;
-            transform: scale(${scale});
+            width: ${expandedSize}px;
+            height: ${expandedSize}px;
         `;
 
         this.overlay.appendChild(this.transitionLogo);
@@ -242,29 +254,30 @@ class LogoTransition {
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         const logoSize = 64;
-        const maxDimension = Math.max(vw, vh);
-        const startScale = (maxDimension * (data.scale || this.defaults.scale)) / logoSize;
+        const scale = data.scale || this.defaults.scale;
+        const expandedSize = logoSize * scale;
 
         const offsetPixelsX = ((data.offsetX || 0) / 100) * vw;
         const offsetPixelsY = ((data.offsetY || 0) / 100) * vh;
 
-        const centerX = vw / 2 - logoSize / 2 + offsetPixelsX;
-        const centerY = vh / 2 - logoSize / 2 + offsetPixelsY;
-
-        const finalScale = targetRect.width / logoSize;
+        const centerX = vw / 2 - expandedSize / 2 + offsetPixelsX;
+        const centerY = vh / 2 - expandedSize / 2 + offsetPixelsY;
 
         return new Promise(resolve => {
+            // Animate using width/height for sharp vector scaling
             const animation = this.transitionLogo.animate([
                 {
-                    transform: `scale(${startScale})`,
                     left: `${centerX}px`,
                     top: `${centerY}px`,
+                    width: `${expandedSize}px`,
+                    height: `${expandedSize}px`,
                     opacity: 1
                 },
                 {
-                    transform: `scale(${finalScale})`,
                     left: `${targetRect.left}px`,
                     top: `${targetRect.top}px`,
+                    width: `${targetRect.width}px`,
+                    height: `${targetRect.height}px`,
                     opacity: 1
                 }
             ], {
@@ -516,25 +529,26 @@ class LogoTransition {
 
         this.createTransitionLogo(serviceData);
         document.body.classList.add('transitioning');
+        document.body.style.backgroundColor = serviceData.fillColor;
 
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         const rect = serviceData.rect;
         const logoSize = Math.max(rect.width, rect.height);
-        const maxDimension = Math.max(vw, vh);
-        const targetScale = (maxDimension * serviceData.scale) / logoSize;
+        const targetScale = serviceData.scale;
+        const finalSize = logoSize * targetScale;
 
         const offsetPixelsX = (serviceData.offsetX / 100) * vw;
         const offsetPixelsY = (serviceData.offsetY / 100) * vh;
 
-        const centerX = vw / 2 - rect.width / 2 + offsetPixelsX;
-        const centerY = vh / 2 - rect.height / 2 + offsetPixelsY;
+        const centerX = vw / 2 - finalSize / 2 + offsetPixelsX;
+        const centerY = vh / 2 - finalSize / 2 + offsetPixelsY;
 
-        // Expand
+        // Expand using width/height for sharp vector scaling
         await new Promise(resolve => {
             this.transitionLogo.animate([
-                { transform: 'scale(1)', left: `${rect.left}px`, top: `${rect.top}px`, opacity: 1 },
-                { transform: `scale(${targetScale})`, left: `${centerX}px`, top: `${centerY}px`, opacity: 1 }
+                { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, opacity: 1 },
+                { left: `${centerX}px`, top: `${centerY}px`, width: `${finalSize}px`, height: `${finalSize}px`, opacity: 1 }
             ], { duration: 600, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }).onfinish = resolve;
         });
 
@@ -544,12 +558,13 @@ class LogoTransition {
         // Shrink back
         await new Promise(resolve => {
             this.transitionLogo.animate([
-                { transform: `scale(${targetScale})`, left: `${centerX}px`, top: `${centerY}px`, opacity: 1 },
-                { transform: 'scale(1)', left: `${rect.left}px`, top: `${rect.top}px`, opacity: 1 }
+                { left: `${centerX}px`, top: `${centerY}px`, width: `${finalSize}px`, height: `${finalSize}px`, opacity: 1 },
+                { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, opacity: 1 }
             ], { duration: 600, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }).onfinish = resolve;
         });
 
         this.cleanup();
+        document.body.style.backgroundColor = '';
         document.body.classList.remove('transitioning');
     }
 

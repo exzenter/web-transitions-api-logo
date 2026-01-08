@@ -26,17 +26,12 @@
 /* Make SVGs stay crisp/vector during scaling */
 svg {
     shape-rendering: geometricPrecision;
-    image-rendering: optimizeQuality;
 }
 
-.transition-logo svg,
-.hero-logo svg,
-.service-link svg {
-    /* Prevent rasterization during transforms */
-    will-change: transform;
-    transform: translateZ(0);
-    backface-visibility: hidden;
-    -webkit-font-smoothing: antialiased;
+/* Transition logo must scale as pure vector - no GPU rasterization */
+.transition-logo svg {
+    /* Ensure SVG scales as vector, not raster */
+    overflow: visible;
 }
 
 /* Reset & Base */
@@ -58,9 +53,15 @@ body {
     overflow-x: hidden;
 }
 
-/* Prevent scroll during transition */
+/* Prevent scroll during transition and set background to logo color */
 body.transitioning {
     overflow: hidden;
+}
+
+/* Dynamic background color during transition - set via JS */
+body.transitioning {
+    background-color: var(--transition-color, var(--bg-dark));
+    transition: background-color 0.1s ease;
 }
 
 /* ==================== STARTPAGE STYLES ==================== */
